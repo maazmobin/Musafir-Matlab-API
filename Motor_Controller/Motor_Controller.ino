@@ -51,6 +51,9 @@ int interval = 10; // in ms
 int debugInterval = 100; // in ms
 unsigned long debugPreviousMillis = 0;
 
+int poseEnable=0, duration=0;
+unsigned long posePreviousMillis=0;
+
 int tempRunningTime=5000; // ms
 
 String inputString = "";         // a string to hold incoming data
@@ -110,7 +113,9 @@ if (stringComplete) {
     distanceR=abs(distanceR);
     measuredVelR = (float)distanceR*(1000.0/interval);
   }
-
+  
+  pose_broadcast(currentMillis);
+ 
  /* if (currentMillis - debugPreviousMillis >= debugInterval) {
     debugPreviousMillis = currentMillis;
     String dataTX=String(int(navigator.Position().x/10))+","+String(int(navigator.Position().y/10))+","+String(navigator.Heading())+","+String(navigator.TurnRate())+","+String(navigator.Speed()/10);
@@ -216,7 +221,15 @@ void interpretSerialData(void){
         delay(1);
         Serial.println('d');
         break;
-        
+      case 'E':   //POSE BROADCAST
+      //COMMAND E , Enable/disable(1/0) , duration(ms)
+        c1 = inputString.indexOf(',')+1;
+        c2 = inputString.indexOf(',',c1);
+        poseEnable = inputString.substring(c1,c2).toInt();
+        c1 = c2+1;
+        c2 = inputString.indexOf(',',c1);
+        duration = inputString.substring(c1).toFloat();
+        break;
       case 'H':
         // COMMAND:  H,P,I,D,1/2\n
         float p,i,d;
@@ -349,3 +362,16 @@ void initEEPROM(void){
     EEPROM.put((const int)(MAGICADDRESS+sizeof(motorParams)), motorPIDR);
   }  
 }
+void pose_broadcast(unsigned long inputMillis)
+{
+  if(poseEnable==1)
+  {
+    if(inputMillis - posePreviousMillis >= duration)
+    {
+          String dataTX="e,"+String(inputMillis)+","+String(int(navigator.Position().x/10))+","+String(int(navigator.Position().y/10))+","+String(navigator.Heading());
+    Serial.println(dataTX);
+    posePreviousMillis=inputMillis;
+      }
+    }
+  }
+  
