@@ -44,11 +44,12 @@ double velL=0, velR=0;
 PID pidL(&measuredVelL, &pwmL, &velL, 2.05,1,0, DIRECT);
 PID pidR(&measuredVelR, &pwmR, &velR, 2,1,0, DIRECT);
 
+int ROBOT=1;
 boolean pidActive= false;
 
 unsigned long previousMillis = 0;
 int interval = 10; // in ms
-int debugInterval = 100; // in ms
+int debugInterval = 1000; // in ms
 unsigned long debugPreviousMillis = 0;
 
 int poseEnable=0, duration=0;
@@ -116,11 +117,11 @@ if (stringComplete) {
   
   pose_broadcast(currentMillis);
  
- /* if (currentMillis - debugPreviousMillis >= debugInterval) {
+  if (currentMillis - debugPreviousMillis >= debugInterval) {
     debugPreviousMillis = currentMillis;
-    String dataTX=String(int(navigator.Position().x/10))+","+String(int(navigator.Position().y/10))+","+String(navigator.Heading())+","+String(navigator.TurnRate())+","+String(navigator.Speed()/10);
+    String dataTX=String(ROBOT)+","+String(int(navigator.Position().x/10))+","+String(int(navigator.Position().y/10))+","+String(navigator.Heading());//+","+String(navigator.TurnRate())+","+String(navigator.Speed()/10);
     Serial.println(dataTX);
-  }*/
+  }
 }
 
 
