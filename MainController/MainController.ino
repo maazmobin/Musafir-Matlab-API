@@ -4,7 +4,7 @@
 #include <RF24.h>
 #include <RF24_config.h>
 
-String ROBOT="2";
+String ROBOT="1";
 
 // RF24 radio(CE,CSN);
 RF24 radio(49,53);
@@ -17,6 +17,7 @@ String recvPayload = "";
 void setup(void) {
   Serial.begin(115200);
   Serial1.begin(115200);
+  Serial2.begin(115200);
   printf_begin();
 
   Serial.println("MainController");
@@ -96,6 +97,10 @@ void serialReceive(void) {
     radio.startListening();
     Serial.print(sendPayload);
     Serial.println();
+    if(sendPayload[0]=='e')
+    {
+      Serial2.print(sendPayload);
+      }
     sendPayload = "";
     stringComplete = false;
   }

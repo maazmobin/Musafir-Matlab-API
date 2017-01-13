@@ -117,11 +117,11 @@ if (stringComplete) {
   
   pose_broadcast(currentMillis);
  
-  if (currentMillis - debugPreviousMillis >= debugInterval) {
+  /*if (currentMillis - debugPreviousMillis >= debugInterval) {
     debugPreviousMillis = currentMillis;
     String dataTX=String(ROBOT)+","+String(int(navigator.Position().x/10))+","+String(int(navigator.Position().y/10))+","+String(navigator.Heading());//+","+String(navigator.TurnRate())+","+String(navigator.Speed()/10);
     Serial.println(dataTX);
-  }
+  }*/
 }
 
 
@@ -369,7 +369,7 @@ void pose_broadcast(unsigned long inputMillis)
   {
     if(inputMillis - posePreviousMillis >= duration)
     {
-          String dataTX="e,"+String(inputMillis)+","+String(int(navigator.Position().x/10))+","+String(int(navigator.Position().y/10))+","+String(navigator.Heading());
+          String dataTX="e,"+String(ROBOT)+","+String(inputMillis)+","+String(int(navigator.Position().x/10))+","+String(int(navigator.Position().y/10))+","+String(navigator.Heading());
     Serial.println(dataTX);
     posePreviousMillis=inputMillis;
       }
