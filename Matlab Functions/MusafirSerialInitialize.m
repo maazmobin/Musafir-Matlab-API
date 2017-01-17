@@ -1,6 +1,6 @@
 function musafirSerial = MusafirSerialInitialize( port )
 
-musafirSerial=serial(port,'BaudRate',115200,'BytesAvailableFcn',@dummyy);
+musafirSerial=serial(port,'BaudRate',115200,'BytesAvailableFcn',@PoseBroadcastParser);
 %try
 fclose(instrfind);
 %port.BytesAvailableFcnMode='terminator';

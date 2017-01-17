@@ -1,4 +1,4 @@
-function done = dummyy(obj,event)
+function done = PoseBroadcastParser(obj,event)
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 dataFromSerial=fscanf(obj);
