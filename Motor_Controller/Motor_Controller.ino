@@ -52,7 +52,7 @@ int interval = 10; // in ms
 int debugInterval = 1000; // in ms
 unsigned long debugPreviousMillis = 0;
 
-int poseEnable=0, duration=0;
+int poseEnable=1, duration=40;
 unsigned long posePreviousMillis=0;
 
 int tempRunningTime=5000; // ms
