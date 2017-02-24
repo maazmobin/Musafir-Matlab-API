@@ -17,10 +17,19 @@ MusafirMotor motorR(13, 12, 10);
 Navigator  navigator;
 //from https://github.com/solderspot/NavBot/blob/master/NavBot_v1/BlankBot.h
 // Navigator defines
+                    // MUSAFIR v1.0
+/*
 #define WHEELBASE               nvMM(189)      // millimeters
 #define WHEEL_DIAMETER          nvMM(89)      // millimeters
 #define TICKS_PER_REV           1520          //ROBOT 1
 #define WHEEL_DIAMETER_CM       8.9           // centi-meters
+#define DISTANCE_PER_TICK       (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV)
+*/
+                    // MUSAFIR v1.5
+#define WHEELBASE               nvMM(327)      // millimeters
+#define WHEEL_DIAMETER          nvMM(148)      // millimeters
+#define TICKS_PER_REV           5490          //ROBOT 1
+#define WHEEL_DIAMETER_CM       14.8           // centi-meters
 #define DISTANCE_PER_TICK       (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV)
 
 // correct for systematic errors
