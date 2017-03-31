@@ -11,6 +11,7 @@ int ID;  // use less to assign a value.
 Encoder encL(2,4);
 Encoder encR(3,5);
 long encCurrL, encCurrR;
+long int encOldL,encOldR;
 
 #include "MusafirMotor.h"
 MusafirMotor motorL(7, 6, 9);
@@ -130,7 +131,7 @@ if (stringComplete) {
   else motorR.setPWM(0);
 
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= interval) {
+  if (currentMillis - previousMillis >= interval && poseEnable>=0) {
     previousMillis = currentMillis;
     encCurrL =enc_left_sign*encL.read(); encL.write(0); 
     encCurrR =enc_right_sign*encR.read(); encR.write(0);
@@ -142,7 +143,20 @@ if (stringComplete) {
     distanceR=abs(distanceR);
     measuredVelR = (float)distanceR*(1000.0/interval);
   }
-  
+  if (currentMillis - previousMillis >= interval && poseEnable==-1) {
+    previousMillis = currentMillis;
+    encCurrL =enc_left_sign*encL.read(); encL.write(0); 
+    encCurrR =enc_right_sign*encR.read(); encR.write(0);
+    encOldL+=encCurrL;
+    encOldR+=encCurrR;
+    float distanceL = (float)encCurrL*DISTANCE_PER_TICK;
+    distanceL=abs(distanceL);
+    measuredVelL = (float)distanceL*(1000.0/interval);
+    float distanceR = (float)encCurrR*DISTANCE_PER_TICK;
+    distanceR=abs(distanceR);
+    measuredVelR = (float)distanceR*(1000.0/interval);
+    navigator.Reset(millis());
+  }
   pose_broadcast(currentMillis);
  
   /*if (currentMillis - debugPreviousMillis >= debugInterval) {
@@ -251,7 +265,7 @@ void interpretSerialData(void){
         Serial.println('d');
         break;
       case 'E':   //POSE BROADCAST
-      //COMMAND E , Enable/disable(1/0) , duration(ms)
+      //COMMAND E , Enable/disable/EncoderMode(1/0/-1) , duration(ms)
         c1 = inputString.indexOf(',')+1;
         c2 = inputString.indexOf(',',c1);
         poseEnable = inputString.substring(c1,c2).toInt();
@@ -340,6 +354,14 @@ void interpretSerialData(void){
         delay(1);
         Serial.println('i');
         break;
+      case 'G':
+        // COMMAND: G\n
+        // make reset in both encoders
+        encOldL = 0 ;
+        encOldR = 0 ;
+        delay(1);
+        Serial.println('g');
+        break;
       case 'S':
         // COMMAND:  S,1/2\n
         c1 = inputString.indexOf(',')+1;
@@ -397,11 +419,22 @@ void pose_broadcast(unsigned long inputMillis)
   {
     if(inputMillis - posePreviousMillis >= duration)
     {
-          String dataTX="e,"+String(ROBOT)+","+String(inputMillis)+","+String(int(navigator.Position().x/10))+","+String(int(navigator.Position().y/10))+","+String(navigator.Heading());
+          String dataTX="e,"+String(ID)+","+String(inputMillis)+","+String(int(navigator.Position().x/10))+","+String(int(navigator.Position().y/10))+","+String(navigator.Heading())
+          +","+String(measuredVelL)+","+String(measuredVelR);
     Serial.println(dataTX);
     posePreviousMillis=inputMillis;
       }
     }
+   else if(poseEnable==-1)
+    {
+      if(inputMillis - posePreviousMillis >= duration)
+      {
+            String dataTX="e,"+String(ID)+","+String(inputMillis)+","+String(encOldL)+","+String(encOldR)+","+String(navigator.Heading())
+            +","+String(measuredVelL)+","+String(measuredVelR);
+      Serial.println(dataTX);
+      posePreviousMillis=inputMillis;
+        }
+      }
   }
   void defineRobot (void)
   {
@@ -433,7 +466,20 @@ void pose_broadcast(unsigned long inputMillis)
       enc_left_sign = 1;
       enc_right_sign = -1;
       }
+        //DEFINE HERE FOR ANOTHER ROBOT
+    /*else if(ID==4)  {
+      WHEELBASE = 189 ;
+      WHEEL_DIAMETER = 89 ;
+      TICKS_PER_REV = 1520 ;
+      WHEEL_DIAMETER_CM = 8.9 ;
+      DISTANCE_PER_TICK = (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV) ;
 
+      WHEEL_RL_SCALER = 1.0f ; // Ed
+      WHEELBASE_SCALER = 1.0f ; // Eb
+      DISTANCE_SCALER = 1.0f ; // Es
+      enc_left_sign = 1;
+      enc_right_sign = -1;
+      }*/
       if(MECHANICAL_DEBUG==1){
         Serial.print("ID : ");
         Serial.println(ID);
@@ -455,8 +501,5 @@ void pose_broadcast(unsigned long inputMillis)
         Serial.println(DISTANCE_SCALER);
         }
     }
-
-
-
 
     
