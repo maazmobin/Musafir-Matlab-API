@@ -1,6 +1,9 @@
 #define DEBUG 0
+#define MECHANICAL_DEBUG 1
 #define MAGICADDRESS 7
 #include <math.h>
+#define ID_ADDRESS   200 
+int ID;  // use less to assign a value.
 
 #include <Encoder.h>
 #include <EEPROM.h>
@@ -26,17 +29,32 @@ Navigator  navigator;
 #define DISTANCE_PER_TICK       (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV)
 */
                     // MUSAFIR v1.5
+/*
 #define WHEELBASE               nvMM(327)      // millimeters
 #define WHEEL_DIAMETER          nvMM(148)      // millimeters
 #define TICKS_PER_REV           5490          //ROBOT 1
 #define WHEEL_DIAMETER_CM       14.8           // centi-meters
 #define DISTANCE_PER_TICK       (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV)
+*/
 
 // correct for systematic errors
-#define WHEEL_RL_SCALER         1.0f  // Ed
+/*#define WHEEL_RL_SCALER         1.0f  // Ed
 #define WHEELBASE_SCALER        1.0f  // Eb
 // correct distance 
-#define DISTANCE_SCALER         1.0f  // Es
+#define DISTANCE_SCALER         1.0f  // Es*/
+
+int WHEELBASE = 327 ;
+int WHEEL_DIAMETER = 148 ;
+long int TICKS_PER_REV = 5490 ;
+float WHEEL_DIAMETER_CM = 14.8 ;
+float DISTANCE_PER_TICK = (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV) ;
+
+float WHEEL_RL_SCALER = 1.0f ; // Ed
+float WHEELBASE_SCALER = 1.0f ; // Eb
+float DISTANCE_SCALER = 1.0f ; // Es
+
+int enc_left_sign = 1;
+int enc_right_sign = 1;
 
 #include <PID_v1.h>
 struct motorParams {
@@ -72,6 +90,7 @@ boolean stringComplete = false;
 
 void setup() {
   Serial.begin(115200);
+  defineRobot();
   motorL.setDir(FORWARD);
   motorR.setDir(FORWARD);
   
@@ -113,8 +132,8 @@ if (stringComplete) {
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
-    encCurrL = encL.read(); encL.write(0); 
-    encCurrR =-encR.read(); encR.write(0);
+    encCurrL =enc_left_sign*encL.read(); encL.write(0); 
+    encCurrR =enc_right_sign*encR.read(); encR.write(0);
     navigator.UpdateTicks(encCurrL, encCurrR, millis());
     float distanceL = (float)encCurrL*DISTANCE_PER_TICK;
     distanceL=abs(distanceL);
@@ -384,4 +403,60 @@ void pose_broadcast(unsigned long inputMillis)
       }
     }
   }
-  
+  void defineRobot (void)
+  {
+    EEPROM.get(ID_ADDRESS,ID);
+   // delay(1);
+    if(ID==3)  {
+      WHEELBASE = 327 ;
+      WHEEL_DIAMETER = 148 ;
+      TICKS_PER_REV = 5490 ;
+      WHEEL_DIAMETER_CM = 14.8 ;
+      DISTANCE_PER_TICK = (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV) ;
+
+      WHEEL_RL_SCALER = 1.0f ; // Ed
+      WHEELBASE_SCALER = 1.0f ; // Eb
+      DISTANCE_SCALER = 1.0f ; // Es
+      enc_left_sign = -1;
+      enc_right_sign = 1;
+      }
+    else if(ID==1 || ID == 2)  {
+      WHEELBASE = 189 ;
+      WHEEL_DIAMETER = 89 ;
+      TICKS_PER_REV = 1520 ;
+      WHEEL_DIAMETER_CM = 8.9 ;
+      DISTANCE_PER_TICK = (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV) ;
+
+      WHEEL_RL_SCALER = 1.0f ; // Ed
+      WHEELBASE_SCALER = 1.0f ; // Eb
+      DISTANCE_SCALER = 1.0f ; // Es
+      enc_left_sign = 1;
+      enc_right_sign = -1;
+      }
+
+      if(MECHANICAL_DEBUG==1){
+        Serial.print("ID : ");
+        Serial.println(ID);
+        Serial.print("WHEELBASE: ");
+        Serial.println(WHEELBASE);
+        Serial.print("WHEEL_DIAMETER: ");
+        Serial.println(WHEEL_DIAMETER);
+        Serial.print("TICKS_PER_REV: ");
+        Serial.println(TICKS_PER_REV);
+        Serial.print("WHEEL_DIAMETER_CM: ");
+        Serial.println(WHEEL_DIAMETER_CM);
+        Serial.print("DISTANCE_PER_TICK: ");
+        Serial.println(DISTANCE_PER_TICK);
+        Serial.print("WHEEL_RL_SCALER: ");
+        Serial.println(WHEEL_RL_SCALER);
+        Serial.print("WHEELBASE_SCALER: ");
+        Serial.println(WHEELBASE_SCALER);
+        Serial.print("DISTANCE_SCALER: ");
+        Serial.println(DISTANCE_SCALER);
+        }
+    }
+
+
+
+
+    
