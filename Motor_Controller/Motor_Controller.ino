@@ -5,44 +5,32 @@
 #define ID_ADDRESS   200 
 int ID;  // use less to assign a value.
 
-#include <Encoder.h>
+
 #include <EEPROM.h>
 
+//        ////ENCODER
+#include <Encoder.h>
 Encoder encL(2,4);
 Encoder encR(3,5);
 long encCurrL, encCurrR;
 long int encOldL,encOldR;
+int enc_left_sign = 1;
+int enc_right_sign = 1;
+//       ENCODER//////
 
+
+//      ////MUSAFIR MOTOR
 #include "MusafirMotor.h"
 MusafirMotor motorL(7, 6, 9);
 MusafirMotor motorR(13, 12, 10);
+//      MUSAFIR MOTOR////
 
+//      ////NAVIGATOR/ODOMETRY
 #include "Navigator.h"
 Navigator  navigator;
 //from https://github.com/solderspot/NavBot/blob/master/NavBot_v1/BlankBot.h
 // Navigator defines
-                    // MUSAFIR v1.0
-/*
-#define WHEELBASE               nvMM(189)      // millimeters
-#define WHEEL_DIAMETER          nvMM(89)      // millimeters
-#define TICKS_PER_REV           1520          //ROBOT 1
-#define WHEEL_DIAMETER_CM       8.9           // centi-meters
-#define DISTANCE_PER_TICK       (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV)
-*/
-                    // MUSAFIR v1.5
-/*
-#define WHEELBASE               nvMM(327)      // millimeters
-#define WHEEL_DIAMETER          nvMM(148)      // millimeters
-#define TICKS_PER_REV           5490          //ROBOT 1
-#define WHEEL_DIAMETER_CM       14.8           // centi-meters
-#define DISTANCE_PER_TICK       (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV)
-*/
-
-// correct for systematic errors
-/*#define WHEEL_RL_SCALER         1.0f  // Ed
-#define WHEELBASE_SCALER        1.0f  // Eb
-// correct distance 
-#define DISTANCE_SCALER         1.0f  // Es*/
+//      NAVIGATOR/ODOMETRY////
 
 int WHEELBASE = 327 ;
 int WHEEL_DIAMETER = 148 ;
@@ -54,15 +42,15 @@ float WHEEL_RL_SCALER = 1.0f ; // Ed
 float WHEELBASE_SCALER = 1.0f ; // Eb
 float DISTANCE_SCALER = 1.0f ; // Es
 
-int enc_left_sign = 1;
-int enc_right_sign = 1;
 
+//      ////PID
 #include <PID_v1.h>
 struct motorParams {
   double kp;
   double ki;
   double kd;
 };
+
 motorParams motorPIDL;
 motorParams motorPIDR;
 double measuredVelL=0, measuredVelR=0;
@@ -72,7 +60,8 @@ double velL=0, velR=0;
 PID pidL(&measuredVelL, &pwmL, &velL, 2.05,1,0, DIRECT);
 PID pidR(&measuredVelR, &pwmR, &velR, 2,1,0, DIRECT);
 
-int ROBOT=1;
+//      PID////
+
 boolean pidActive= false;
 
 unsigned long previousMillis = 0;
@@ -115,35 +104,30 @@ initEEPROM();
 void loop() {   
   if(pidActive){
     pidL.SetMode(AUTOMATIC);
-  pidR.SetMode(AUTOMATIC);
-  pidL.Compute();
-  pidR.Compute();}
-  else{pidL.SetMode(AUTOMATIC);
-  pidR.SetMode(AUTOMATIC);}
-if (stringComplete) {
+    pidR.SetMode(AUTOMATIC);
+    pidL.Compute();
+    pidR.Compute();
+    }
+  else{
+    pidL.SetMode(AUTOMATIC);
+    pidR.SetMode(AUTOMATIC);
+    }
+    
+  if (stringComplete) {
     interpretSerialData();
     stringComplete = false;
     inputString = "";
-  }
+    }
+    
   if(velL>0) motorL.setPWM(pwmL);
   else motorL.setPWM(0);
+  
   if(velR>0) motorR.setPWM(pwmR);
   else motorR.setPWM(0);
 
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= interval && poseEnable>=0) {
-    previousMillis = currentMillis;
-    encCurrL =enc_left_sign*encL.read(); encL.write(0); 
-    encCurrR =enc_right_sign*encR.read(); encR.write(0);
-    navigator.UpdateTicks(encCurrL, encCurrR, millis());
-    float distanceL = (float)encCurrL*DISTANCE_PER_TICK;
-    distanceL=abs(distanceL);
-    measuredVelL = (float)distanceL*(1000.0/interval);
-    float distanceR = (float)encCurrR*DISTANCE_PER_TICK;
-    distanceR=abs(distanceR);
-    measuredVelR = (float)distanceR*(1000.0/interval);
-  }
-  if (currentMillis - previousMillis >= interval && poseEnable==-1) {
+            //// ENCODER MODE
+    if (currentMillis - previousMillis >= interval && poseEnable==2) {
     previousMillis = currentMillis;
     encCurrL =enc_left_sign*encL.read(); encL.write(0); 
     encCurrR =enc_right_sign*encR.read(); encR.write(0);
@@ -157,13 +141,21 @@ if (stringComplete) {
     measuredVelR = (float)distanceR*(1000.0/interval);
     navigator.Reset(millis());
   }
+            ////  ODOMETRY MODE
+  else if (currentMillis - previousMillis >= interval && poseEnable>=0) {
+    previousMillis = currentMillis;
+    encCurrL =enc_left_sign*encL.read(); encL.write(0); 
+    encCurrR =enc_right_sign*encR.read(); encR.write(0);
+    navigator.UpdateTicks(encCurrL, encCurrR, millis());
+    float distanceL = (float)encCurrL*DISTANCE_PER_TICK;
+    distanceL=abs(distanceL);
+    measuredVelL = (float)distanceL*(1000.0/interval);
+    float distanceR = (float)encCurrR*DISTANCE_PER_TICK;
+    distanceR=abs(distanceR);
+    measuredVelR = (float)distanceR*(1000.0/interval);
+  }
+
   pose_broadcast(currentMillis);
- 
-  /*if (currentMillis - debugPreviousMillis >= debugInterval) {
-    debugPreviousMillis = currentMillis;
-    String dataTX=String(ROBOT)+","+String(int(navigator.Position().x/10))+","+String(int(navigator.Position().y/10))+","+String(navigator.Heading());//+","+String(navigator.TurnRate())+","+String(navigator.Speed()/10);
-    Serial.println(dataTX);
-  }*/
 }
 
 
@@ -176,29 +168,29 @@ void initPID(void){
   pidL.SetOutputLimits(0,250);  // min/max PWM
   pidR.SetOutputLimits(0,250);  
 }
+
 void VelL(int velocity)
 {
   if(velocity>=0){velL=velocity;motorL.setDir(FORWARD);}
   else if(velocity<=0){velL=(-1*velocity);motorL.setDir(BACKWARD);}
   }
+  
 void VelR(int velocity)
 {
   if(velocity>=0){velR=velocity;motorR.setDir(FORWARD);}
   else if(velocity<=0){velR=(-1*velocity);motorR.setDir(BACKWARD);}
 }
+
 void serialEvent() {
   while (Serial.available()) {
-    // get the new byte:
     char inChar = (char)Serial.read();
-    // add it to the inputString:
     inputString += inChar;
-    // if the incoming character is a newline, set a flag
-    // so the main loop can do something about it:
     if (inChar == '\n') {
       stringComplete = true;
     }
   }
 }
+
 void interpretSerialData(void){
     int c1=1, c2=1;
     int val1=0, val2=0;
@@ -390,17 +382,18 @@ void interpretSerialData(void){
         break;
     }
 }
+
 void initEEPROM(void){
   int checkEEPROM=0;
   EEPROM.get(0, checkEEPROM);
   if(checkEEPROM==MAGICADDRESS){
-    if(DEBUG) //Serial.println("Reading from EEPROM.");
+    if(DEBUG) Serial.println("Reading from EEPROM.");
     EEPROM.get((const int)MAGICADDRESS, motorPIDL);   //(address, data)
     EEPROM.get((const int)(MAGICADDRESS+sizeof(motorParams)), motorPIDR);
   }
   else{
     // Set default values
-    if(DEBUG) //Serial.println("Setting Default Values.");
+    if(DEBUG) Serial.println("Setting Default Values.");
     EEPROM.put(0, MAGICADDRESS);
     motorPIDL.kp = 1.0;
     motorPIDL.ki = 0.0;
@@ -413,28 +406,29 @@ void initEEPROM(void){
     EEPROM.put((const int)(MAGICADDRESS+sizeof(motorParams)), motorPIDR);
   }  
 }
+
 void pose_broadcast(unsigned long inputMillis)
 {
   if(poseEnable==1)
   {
     if(inputMillis - posePreviousMillis >= duration)
     {
-          String dataTX="e,"+String(ID)+","+String(inputMillis)+","+String(int(navigator.Position().x/10))+","+String(int(navigator.Position().y/10))+","+String(navigator.Heading())
-          +","+String(measuredVelL)+","+String(measuredVelR);
-    Serial.println(dataTX);
-    posePreviousMillis=inputMillis;
-      }
-    }
-   else if(poseEnable==-1)
-    {
-      if(inputMillis - posePreviousMillis >= duration)
-      {
-            String dataTX="e,"+String(ID)+","+String(inputMillis)+","+String(encOldL)+","+String(encOldR)+","+String(navigator.Heading())
-            +","+String(measuredVelL)+","+String(measuredVelR);
+      String dataTX="e,"+String(ID)+","+String(inputMillis)+","+String(float(navigator.Position().x/100))+","+String(float(navigator.Position().y/100))+","+String(navigator.Heading())
+      +","+String(measuredVelL)+","+String(measuredVelR);       //(navigator.Position().x/100)  //  100 defines meter, 10 defines centimeter, 1 defines mili meter. 
       Serial.println(dataTX);
       posePreviousMillis=inputMillis;
-        }
       }
+    }
+  else if(poseEnable==2)
+   {
+     if(inputMillis - posePreviousMillis >= duration)
+     {
+       String dataTX="e,"+String(ID)+","+String(inputMillis)+","+String(encOldL)+","+String(encOldR)+","+String(navigator.Heading())
+       +","+String(measuredVelL)+","+String(measuredVelR);
+       Serial.println(dataTX);
+       posePreviousMillis=inputMillis;
+       }
+     }
   }
   void defineRobot (void)
   {
@@ -468,17 +462,17 @@ void pose_broadcast(unsigned long inputMillis)
       }
         //DEFINE HERE FOR ANOTHER ROBOT
     /*else if(ID==4)  {
-      WHEELBASE = 189 ;
-      WHEEL_DIAMETER = 89 ;
-      TICKS_PER_REV = 1520 ;
-      WHEEL_DIAMETER_CM = 8.9 ;
+      WHEELBASE =  ;
+      WHEEL_DIAMETER =  ;
+      TICKS_PER_REV =  ;
+      WHEEL_DIAMETER_CM =  ;
       DISTANCE_PER_TICK = (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV) ;
 
-      WHEEL_RL_SCALER = 1.0f ; // Ed
-      WHEELBASE_SCALER = 1.0f ; // Eb
-      DISTANCE_SCALER = 1.0f ; // Es
-      enc_left_sign = 1;
-      enc_right_sign = -1;
+      WHEEL_RL_SCALER =  ; // Ed
+      WHEELBASE_SCALER =  ; // Eb
+      DISTANCE_SCALER =  ; // Es
+      enc_left_sign =  ;
+      enc_right_sign =  ;
       }*/
       if(MECHANICAL_DEBUG==1){
         Serial.print("ID : ");
