@@ -5,7 +5,6 @@
 #define ID_ADDRESS   200 
 int ID;  // use less to assign a value.
 
-
 #include <EEPROM.h>
 
 //        ////ENCODER
@@ -17,7 +16,6 @@ long int encOldL,encOldR;
 int enc_left_sign = 1;
 int enc_right_sign = 1;
 //       ENCODER//////
-
 
 //      ////MUSAFIR MOTOR
 #include "MusafirMotor.h"
@@ -77,6 +75,9 @@ int tempRunningTime=5000; // ms
 String inputString = "";         // a string to hold incoming data
 boolean stringComplete = false;
 
+#define cm_meter 100 //100 = meter , 1 = cm
+int max_speed;
+int min_speed;
 
 void setup() {
   Serial.begin(115200);
@@ -229,15 +230,22 @@ void interpretSerialData(void){
         // COMMAND:  D,speed_motor_left,speed_motor_right\n
         c1 = inputString.indexOf(',')+1;
         c2 = inputString.indexOf(',',c1);
-        val1 = inputString.substring(c1,c2).toInt();
+        val1 = inputString.substring(c1,c2).toFloat();
         c1 = c2+1;
-        val2 = inputString.substring(c1).toInt();
+        val2 = inputString.substring(c1).toFloat();
         if(val1<0) { motorL.setDir(BACKWARD); val1 = -val1; }
+        else if(val1==0) { motorL.setDir(BRAKE);}
         else         motorL.setDir(FORWARD);
+        
         if(val2<0) { motorR.setDir(BACKWARD); val2 = -val2; }
+        else if(val2==0) { motorR.setDir(BRAKE);}
         else         motorR.setDir(FORWARD);
-        velL = val1;
-        velR = val2;
+        
+        velL = (val1)*cm_meter;
+        if(velL>0)  { velL=constrain(velL,min_speed,max_speed); }
+        velR = (val2)*cm_meter;
+        if(velR>0)  { velR=constrain(velR,min_speed,max_speed); }
+        
         if(DEBUG){
           Serial.print("Velocity 1 ");
           Serial.println(velL);
@@ -354,6 +362,11 @@ void interpretSerialData(void){
         delay(1);
         Serial.println('g');
         break;
+      case 'J':
+        // COMMAND: J\n
+        sendRobotParameters();
+        Serial.println('j');
+        break;
       case 'S':
         // COMMAND:  S,1/2\n
         c1 = inputString.indexOf(',')+1;
@@ -367,7 +380,8 @@ void interpretSerialData(void){
           Serial.print(motorPIDL.ki);
           Serial.print(',');
           Serial.println(motorPIDL.kd);
-        }else if(val1==2) {
+        }
+        else if(val1==2) {
           Serial.print("s,");
           Serial.print(motorPIDR.kp);
           Serial.print(',');
@@ -413,8 +427,8 @@ void pose_broadcast(unsigned long inputMillis)
   {
     if(inputMillis - posePreviousMillis >= duration)
     {
-      String dataTX="e,"+String(ID)+","+String(inputMillis)+","+String(float(navigator.Position().x/100))+","+String(float(navigator.Position().y/100))+","+String(navigator.Heading())
-      +","+String(measuredVelL)+","+String(measuredVelR);       //(navigator.Position().x/100)  //  100 defines meter, 10 defines centimeter, 1 defines mili meter. 
+      String dataTX="e,"+String(ID)+","+String(inputMillis)+","+String(float(navigator.Position().x/(10*cm_meter)))+","+String(float(navigator.Position().y/(10*cm_meter)))+","+String(navigator.Heading())
+      +","+String(measuredVelL)+","+String(measuredVelR);       
       Serial.println(dataTX);
       posePreviousMillis=inputMillis;
       }
@@ -423,7 +437,7 @@ void pose_broadcast(unsigned long inputMillis)
    {
      if(inputMillis - posePreviousMillis >= duration)
      {
-       String dataTX="e,"+String(ID)+","+String(inputMillis)+","+String(encOldL)+","+String(encOldR)+","+String(navigator.Heading())
+       String dataTX="e,"+String(ID)+","+String(inputMillis)+","+String(encOldL)+","+String(encOldR)
        +","+String(measuredVelL)+","+String(measuredVelR);
        Serial.println(dataTX);
        posePreviousMillis=inputMillis;
@@ -446,6 +460,9 @@ void pose_broadcast(unsigned long inputMillis)
       DISTANCE_SCALER = 1.0f ; // Es
       enc_left_sign = -1;
       enc_right_sign = 1;
+
+      max_speed=20/cm_meter;      //fill blank in cm/sec.
+      min_speed=10/cm_meter;
       }
     else if(ID==1 || ID == 2)  {
       WHEELBASE = 189 ;
@@ -459,8 +476,11 @@ void pose_broadcast(unsigned long inputMillis)
       DISTANCE_SCALER = 1.0f ; // Es
       enc_left_sign = 1;
       enc_right_sign = -1;
+
+      max_speed=100/cm_meter;     //fill blank in cm/sec.
+      min_speed=10/cm_meter;
       }
-        //DEFINE HERE FOR ANOTHER ROBOT
+        //DEFINE HERE FOR NEW ROBOT
     /*else if(ID==4)  {
       WHEELBASE =  ;
       WHEEL_DIAMETER =  ;
@@ -473,27 +493,37 @@ void pose_broadcast(unsigned long inputMillis)
       DISTANCE_SCALER =  ; // Es
       enc_left_sign =  ;
       enc_right_sign =  ;
+
+      max_speed= __/cm_meter; //fill blank in cm/sec.
+      min_speed= __/cm_meter; 
       }*/
       if(MECHANICAL_DEBUG==1){
-        Serial.print("ID : ");
-        Serial.println(ID);
-        Serial.print("WHEELBASE: ");
-        Serial.println(WHEELBASE);
-        Serial.print("WHEEL_DIAMETER: ");
-        Serial.println(WHEEL_DIAMETER);
-        Serial.print("TICKS_PER_REV: ");
-        Serial.println(TICKS_PER_REV);
-        Serial.print("WHEEL_DIAMETER_CM: ");
-        Serial.println(WHEEL_DIAMETER_CM);
-        Serial.print("DISTANCE_PER_TICK: ");
-        Serial.println(DISTANCE_PER_TICK);
-        Serial.print("WHEEL_RL_SCALER: ");
-        Serial.println(WHEEL_RL_SCALER);
-        Serial.print("WHEELBASE_SCALER: ");
-        Serial.println(WHEELBASE_SCALER);
-        Serial.print("DISTANCE_SCALER: ");
-        Serial.println(DISTANCE_SCALER);
+        sendRobotParameters();
         }
     }
-
+void sendRobotParameters(void)
+{
+    Serial.print("ID : ");
+    Serial.println(ID);
+    Serial.print("WHEELBASE: ");
+    Serial.println(WHEELBASE);
+    Serial.print("WHEEL_DIAMETER: ");
+    Serial.println(WHEEL_DIAMETER);
+    Serial.print("TICKS_PER_REV: ");
+    Serial.println(TICKS_PER_REV);
+    Serial.print("WHEEL_DIAMETER_CM: ");
+    Serial.println(WHEEL_DIAMETER_CM);
+    Serial.print("DISTANCE_PER_TICK: ");
+    Serial.println(DISTANCE_PER_TICK);
+    Serial.print("WHEEL_RL_SCALER: ");
+    Serial.println(WHEEL_RL_SCALER);
+    Serial.print("WHEELBASE_SCALER: ");
+    Serial.println(WHEELBASE_SCALER);
+    Serial.print("DISTANCE_SCALER: ");
+    Serial.println(DISTANCE_SCALER);
+    Serial.print("Maximum Speed: ");
+    Serial.println(max_speed);
+    Serial.print("Minimum Speed: ");
+    Serial.println(min_speed);
+  }
     
