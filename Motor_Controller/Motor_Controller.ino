@@ -4,12 +4,13 @@
 #include <math.h>
 #define ID_ADDRESS   200      //Address for the robot ID
 #define nrf_delay 1
-int ID;  // use less to assign a value.
+int ID;  
 
 #include <EEPROM.h>
 
 //        ////ENCODER
 #include <Encoder.h>
+Encoder encL(2, 4);
 Encoder encR(3, 5);
 long encCurrL, encCurrR;
 long int encOldL, encOldR;
@@ -30,7 +31,7 @@ Navigator  navigator;
 // Navigator defines
 //      NAVIGATOR/ODOMETRY////
 
-////Scalar will be Declared According to Robot ID. No need to change here.
+////Scalar will be Declared According to Robot ID. Assign values in function defineRobot() .
 int WHEELBASE = 1 ;                 //mm
 int WHEEL_DIAMETER = 1 ;            //mm
 long int TICKS_PER_REV = 1 ;        //mm
@@ -110,7 +111,6 @@ void loop() {
     inputString = "";
   }
   if (velL > 0) motorL.setPWM(pwmL);
-
   if (velR > 0) motorR.setPWM(pwmR);
 
   unsigned long currentMillis = millis();
