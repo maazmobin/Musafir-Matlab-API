@@ -75,7 +75,7 @@ int tempRunningTime=5000; // ms
 String inputString = "";         // a string to hold incoming data
 boolean stringComplete = false;
 
-#define cm_meter 100 //100 = meter , 1 = cm
+#define cm_meter 100.0 //100.0 = meter , 1.0 = cm
 int max_speed;
 int min_speed;
 
