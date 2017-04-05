@@ -1,15 +1,16 @@
 #define DEBUG 0
 #define MECHANICAL_DEBUG 1
-#define MAGICADDRESS 7
+#define MAGICADDRESS 7        //Address For the PID
 #include <math.h>
-#define ID_ADDRESS   200 
+#define ID_ADDRESS   200      //Address for the robot ID
+#define nrf_delay 1
 int ID;  // use less to assign a value.
 
 #include <EEPROM.h>
 
 //        ////ENCODER
 #include <Encoder.h>
-Encoder encL(2,4);
+Encoder encL(2,4);      //
 Encoder encR(3,5);
 long encCurrL, encCurrR;
 long int encOldL,encOldR;
@@ -30,10 +31,11 @@ Navigator  navigator;
 // Navigator defines
 //      NAVIGATOR/ODOMETRY////
 
-int WHEELBASE = 327 ;
-int WHEEL_DIAMETER = 148 ;
-long int TICKS_PER_REV = 5490 ;
-float WHEEL_DIAMETER_CM = 14.8 ;
+                   ////Scalar will be Declared According to Robot ID. No need to change here.
+int WHEELBASE = 1 ;                 //mm
+int WHEEL_DIAMETER = 1 ;            //mm
+long int TICKS_PER_REV = 1 ;        //mm
+float WHEEL_DIAMETER_CM = 1 ;       //cm
 float DISTANCE_PER_TICK = (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV) ;
 
 float WHEEL_RL_SCALER = 1.0f ; // Ed
@@ -63,14 +65,10 @@ PID pidR(&measuredVelR, &pwmR, &velR, 2,1,0, DIRECT);
 boolean pidActive= false;
 
 unsigned long previousMillis = 0;
-int interval = 10; // in ms
-int debugInterval = 1000; // in ms
-unsigned long debugPreviousMillis = 0;
+int interval = 10; // in ms         // PID sample interval
 
-int poseEnable=1, duration=40;
+int echoStatusMode=1, duration=40;      // Parameters for Br
 unsigned long posePreviousMillis=0;
-
-int tempRunningTime=5000; // ms
 
 String inputString = "";         // a string to hold incoming data
 boolean stringComplete = false;
@@ -92,26 +90,19 @@ void setup() {
   navigator.SetMinInterval(interval);
   navigator.Reset(millis());
 
-initEEPROM();
+  initEEPROM();
   initPID();
   velL = 00; //cm/s for TESTING of nav Speed calculations.
   velR = 00;
   pidL.SetMode(AUTOMATIC);
   pidR.SetMode(AUTOMATIC);
-  
   inputString.reserve(200);
 }
 
 void loop() {   
   if(pidActive){
-    pidL.SetMode(AUTOMATIC);
-    pidR.SetMode(AUTOMATIC);
     pidL.Compute();
     pidR.Compute();
-    }
-  else{
-    pidL.SetMode(AUTOMATIC);
-    pidR.SetMode(AUTOMATIC);
     }
     
   if (stringComplete) {
@@ -119,16 +110,16 @@ void loop() {
     stringComplete = false;
     inputString = "";
     }
-    
+          ////CHECK      //!!!!!!!!!!!!!!!!!!!!
   if(velL>0) motorL.setPWM(pwmL);
-  else motorL.setPWM(0);
+  //else motorL.setPWM(0);          //
   
   if(velR>0) motorR.setPWM(pwmR);
-  else motorR.setPWM(0);
+  //else motorR.setPWM(0);          //
 
   unsigned long currentMillis = millis();
             //// ENCODER MODE
-    if (currentMillis - previousMillis >= interval && poseEnable==2) {
+    if (currentMillis - previousMillis >= interval && echoStatusMode==2) {
     previousMillis = currentMillis;
     encCurrL =enc_left_sign*encL.read(); encL.write(0); 
     encCurrR =enc_right_sign*encR.read(); encR.write(0);
@@ -143,7 +134,7 @@ void loop() {
     navigator.Reset(millis());
   }
             ////  ODOMETRY MODE
-  else if (currentMillis - previousMillis >= interval && poseEnable>=0) {
+  else if (currentMillis - previousMillis >= interval && echoStatusMode==0 && echoStatusMode==1) {
     previousMillis = currentMillis;
     encCurrL =enc_left_sign*encL.read(); encL.write(0); 
     encCurrR =enc_right_sign*encR.read(); encR.write(0);
@@ -168,18 +159,6 @@ void initPID(void){
   pidR.SetSampleTime(interval);
   pidL.SetOutputLimits(0,250);  // min/max PWM
   pidR.SetOutputLimits(0,250);  
-}
-
-void VelL(int velocity)
-{
-  if(velocity>=0){velL=velocity;motorL.setDir(FORWARD);}
-  else if(velocity<=0){velL=(-1*velocity);motorL.setDir(BACKWARD);}
-  }
-  
-void VelR(int velocity)
-{
-  if(velocity>=0){velR=velocity;motorR.setDir(FORWARD);}
-  else if(velocity<=0){velR=(-1*velocity);motorR.setDir(BACKWARD);}
 }
 
 void serialEvent() {
@@ -209,20 +188,20 @@ void interpretSerialData(void){
         c2 = inputString.indexOf(',',c1);
         tt = inputString.substring(c1).toFloat();
         navigator.SetPose(xx,yy,tt);
-        delay(1);
+        if(nrf_delay){delay(1);}
         Serial.println("a");
         break;
         case 'B':
         // COMMAND: B\n //Return b,x,y
         delay(1);
         Serial.print("b,");
-        Serial.print(String(int(navigator.Position().x/10)));
+        Serial.print(String(int(navigator.Position().x/(10*cm_meter))));
         Serial.print(",");
-        Serial.println( String(int(navigator.Position().y/10)) );
+        Serial.println( String(int(navigator.Position().y/(10*cm_meter))) );
         break;
         case 'C':
         // COMMAND: C\n //Return c,theta
-        delay(1);
+        if(nrf_delay){delay(1);}
         Serial.print("c,");
         Serial.println( String(navigator.Heading()) );
         break;
@@ -242,33 +221,44 @@ void interpretSerialData(void){
         else         motorR.setDir(FORWARD);
         
         velL = (val1)*cm_meter;
-        if(velL>0)  { velL=constrain(velL,min_speed,max_speed); }
+        if(velL>0)  
+        { 
+          velL=constrain(velL,min_speed,max_speed);
+          pidL.SetMode(AUTOMATIC);
+          }
+        else
+        {
+          pidL.SetMode(MANUAL);
+          motorL.setPWM(200);
+        }
+          
         velR = (val2)*cm_meter;
-        if(velR>0)  { velR=constrain(velR,min_speed,max_speed); }
-        
+        if(velR>0)  
+        { 
+          velR=constrain(velR,min_speed,max_speed);
+          pidR.SetMode(AUTOMATIC);
+          }
+         else
+         {
+          pidR.SetMode(MANUAL);
+          motorR.setPWM(200);
+          }
+
         if(DEBUG){
           Serial.print("Velocity 1 ");
           Serial.println(velL);
           Serial.print("Velocity 2 ");
           Serial.println(velR);
         }         
-        if(velL>0)
-          pidL.SetMode(AUTOMATIC);
-        else
-          pidL.SetMode(MANUAL);
-        if(velR>0)
-          pidR.SetMode(AUTOMATIC);
-        else
-          pidR.SetMode(MANUAL);
         pidActive= true;
-        delay(1);
+        if(nrf_delay){delay(1);}
         Serial.println('d');
         break;
       case 'E':   //POSE BROADCAST
       //COMMAND E , Enable/disable/EncoderMode(1/0/-1) , duration(ms)
         c1 = inputString.indexOf(',')+1;
         c2 = inputString.indexOf(',',c1);
-        poseEnable = inputString.substring(c1,c2).toInt();
+        echoStatusMode = inputString.substring(c1,c2).toInt();
         c1 = c2+1;
         c2 = inputString.indexOf(',',c1);
         duration = inputString.substring(c1).toFloat();
@@ -303,7 +293,7 @@ void interpretSerialData(void){
           EEPROM.put((const int)(MAGICADDRESS+sizeof(motorParams)), motorPIDR);
           if(DEBUG) Serial.println("motorPIDR ");
         }
-        delay(1);
+        if(nrf_delay){delay(1);}
         Serial.print("h,");
         Serial.print(val1);
         Serial.print(',');
@@ -318,15 +308,32 @@ void interpretSerialData(void){
         c1 = inputString.indexOf(',')+1;
         c2 = inputString.indexOf(',',c1);
         val1 = inputString.substring(c1,c2).toInt();
+        val1 = constrain( val1,-511 , 511 );
         c1 = inputString.indexOf(',',c2)+1;
         val2 = inputString.substring(c1).toInt();
-        if(val1<0) { motorL.setDir(BACKWARD); val1 = -val1; }
+        val2 = constrain( val2,-511 , 511 );
+
+        if(val1 < -255  || val1 > 255)  //Implementing Brake.
+        {
+          val1= 511-abs(val1);
+          motorL.setDir(BRAKE);
+          }
+        else if(val1<0) { motorL.setDir(BACKWARD); val1 = -val1; }
         else         motorL.setDir(FORWARD);
-        if(val2<0) { motorR.setDir(BACKWARD); val2 = -val2; }
+
+        if(val2 < -255  || val2 > 255)  //Implementing Brake.
+        {
+          val2= 511-abs(val2);
+          motorR.setDir(BRAKE);
+          }
+        else if(val2<0) { motorR.setDir(BACKWARD); val2 = -val2; }
         else         motorR.setDir(FORWARD);
+        
         pidActive= false;
         pidL.SetMode(MANUAL);
         pidR.SetMode(MANUAL);
+        val1=constrain(val1,0,250);
+        val2=constrain(val2,0,250);
         pwmL = val1;
         pwmR = val2;
         motorL.setPWM(pwmL);
@@ -335,12 +342,12 @@ void interpretSerialData(void){
           Serial.print("PWM1: "); Serial.println(val1);        
           Serial.print("PWM2: "); Serial.println(val2);
         }
-        delay(1);
+        if(nrf_delay){delay(1);}
         Serial.println('l');
         break;
       case 'R':
         // COMMAND:  R\n
-        delay(1);
+        if(nrf_delay){delay(1);}
         Serial.print("r,");
         Serial.print(encL.read());
         Serial.print(',');
@@ -351,7 +358,7 @@ void interpretSerialData(void){
         // COMMAND: I\n
         // ZP=add navigator.reset here
         navigator.Reset(millis());
-        delay(1);
+        if(nrf_delay){delay(1);}
         Serial.println('i');
         break;
       case 'G':
@@ -359,7 +366,7 @@ void interpretSerialData(void){
         // make reset in both encoders
         encOldL = 0 ;
         encOldR = 0 ;
-        delay(1);
+        if(nrf_delay){delay(1);}
         Serial.println('g');
         break;
       case 'J':
@@ -372,7 +379,7 @@ void interpretSerialData(void){
         c1 = inputString.indexOf(',')+1;
         c2 = inputString.indexOf(',',c1);
         val1 = inputString.substring(c1).toInt();
-        delay(1);
+        if(nrf_delay){delay(1);}
         if(val1==1) {
           Serial.print("s,");
           Serial.print(motorPIDL.kp);
@@ -423,7 +430,7 @@ void initEEPROM(void){
 
 void pose_broadcast(unsigned long inputMillis)
 {
-  if(poseEnable==1)
+  if(echoStatusMode==1)
   {
     if(inputMillis - posePreviousMillis >= duration)
     {
@@ -433,7 +440,7 @@ void pose_broadcast(unsigned long inputMillis)
       posePreviousMillis=inputMillis;
       }
     }
-  else if(poseEnable==2)
+  else if(echoStatusMode==2)
    {
      if(inputMillis - posePreviousMillis >= duration)
      {
@@ -447,12 +454,12 @@ void pose_broadcast(unsigned long inputMillis)
   void defineRobot (void)
   {
     EEPROM.get(ID_ADDRESS,ID);
-   // delay(1);
+    delay(10);
     if(ID==3)  {
-      WHEELBASE = 327 ;
-      WHEEL_DIAMETER = 148 ;
-      TICKS_PER_REV = 5490 ;
-      WHEEL_DIAMETER_CM = 14.8 ;
+      WHEELBASE = 327 ;             //mm
+      WHEEL_DIAMETER = 148 ;        //mm
+      TICKS_PER_REV = 5490 ;        //mm
+      WHEEL_DIAMETER_CM = 14.8 ;    //cm
       DISTANCE_PER_TICK = (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV) ;
 
       WHEEL_RL_SCALER = 1.0f ; // Ed
@@ -465,10 +472,10 @@ void pose_broadcast(unsigned long inputMillis)
       min_speed=10/cm_meter;
       }
     else if(ID==1 || ID == 2)  {
-      WHEELBASE = 189 ;
-      WHEEL_DIAMETER = 89 ;
-      TICKS_PER_REV = 1520 ;
-      WHEEL_DIAMETER_CM = 8.9 ;
+      WHEELBASE = 189 ;             //mm
+      WHEEL_DIAMETER = 89 ;         //mm
+      TICKS_PER_REV = 1520 ;        //mm
+      WHEEL_DIAMETER_CM = 8.9 ;     //cm
       DISTANCE_PER_TICK = (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV) ;
 
       WHEEL_RL_SCALER = 1.0f ; // Ed
@@ -482,10 +489,10 @@ void pose_broadcast(unsigned long inputMillis)
       }
         //DEFINE HERE FOR NEW ROBOT
     /*else if(ID==4)  {
-      WHEELBASE =  ;
-      WHEEL_DIAMETER =  ;
-      TICKS_PER_REV =  ;
-      WHEEL_DIAMETER_CM =  ;
+      WHEELBASE =  ;            //mm
+      WHEEL_DIAMETER =  ;       //mm
+      TICKS_PER_REV =  ;        //mm
+      WHEEL_DIAMETER_CM =  ;    //cm
       DISTANCE_PER_TICK = (M_PI*WHEEL_DIAMETER_CM)/((float)TICKS_PER_REV) ;
 
       WHEEL_RL_SCALER =  ; // Ed
@@ -497,6 +504,13 @@ void pose_broadcast(unsigned long inputMillis)
       max_speed= __/cm_meter; //fill blank in cm/sec.
       min_speed= __/cm_meter; 
       }*/
+      else
+      {
+        while(1){
+          Serial.println("Incorrect ID");
+          delay(1000);
+          }
+        }
       if(MECHANICAL_DEBUG==1){
         sendRobotParameters();
         }
