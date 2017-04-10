@@ -292,6 +292,7 @@ void interpretSerialData(void) {
       c1 = inputString.indexOf(',') + 1;
       val1 = inputString.substring(c1).toInt();
       velocityTimeOut = val1;
+      Serial.println('f');
       break;
     case 'H':
       // COMMAND:  H,P,I,D,1/2\n
@@ -421,6 +422,13 @@ void interpretSerialData(void) {
       sendRobotParameters();
       Serial.println('j');
       break;
+    case 'K':
+    //COMMAND: K\n
+    Serial.print("k,");
+    Serial.print(measuredVelL);
+    Serial.print(",");
+    Serial.println(measuredVelR);
+      break;  
     case 'S':
       // COMMAND:  S,1/2\n
       c1 = inputString.indexOf(',') + 1;
