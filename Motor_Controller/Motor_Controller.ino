@@ -56,9 +56,10 @@ motorParams motorPIDR;
 double measuredVelL = 0, measuredVelR = 0;
 double pwmL = 0, pwmR = 0;
 double velL = 0, velR = 0;
+double accVelL = 0, accVelR = 0;
 // PID (&input, &output, &setpoint, kp, ki, kd, DIRECT/REVERSE)
-PID pidL(&measuredVelL, &pwmL, &velL, 205, 100, 0, DIRECT);
-PID pidR(&measuredVelR, &pwmR, &velR, 200, 100, 0, DIRECT);
+PID pidL(&measuredVelL, &pwmL, &accVelL, 205, 100, 0, DIRECT);
+PID pidR(&measuredVelR, &pwmR, &accVelR, 200, 100, 0, DIRECT);
 
 //      PID////
 
@@ -71,8 +72,14 @@ unsigned long currentMillis = 0;
 int echoStatusMode = 1, duration = 40;  // Parameters for Broadcast mode and duration for repeated broadcast.
 unsigned long echoPreviousMillis = 0;
 
-unsigned long timeOutPreviousMillis = 0;
+unsigned long timeOutPreviousMillis = 0;  //Velocity Time Out.
 int velocityTimeOut = 9000; //ms
+
+unsigned long accPreviousMillis = 0;
+int accMillis = 10; //ms
+float changeVelPerLoop = 0.01; // meter per second square
+float windowExit = 0.1; // 0.1m/s before
+
 
 String inputString = "";         // a string to hold incoming data
 boolean stringComplete = false;
@@ -110,7 +117,36 @@ void loop() {
   }
 
   currentMillis = millis();
-  if (currentMillis - previousMillis >= interval) {   //SETTING PID, Encoder and The Navigator.  
+
+  if (currentMillis - accPreviousMillis >= accMillis && pidActive == true ) {          //Pose Broadcast with a certain Duration.
+    float a = velL - accVelL;
+    if (a > windowExit) {
+      accVelL += changeVelPerLoop;
+    }
+    else if (a < -windowExit) {
+      accVelL -= changeVelPerLoop;
+    }
+    else {
+      accVelL = velL;
+    }
+    accVelL = abs(accVelL);
+   // Serial.print("acc: ");
+  //  Serial.println(accVelL);
+    float b = velR - accVelR;
+    if (b > windowExit) {
+      accVelR += changeVelPerLoop;
+    }
+    else if (b < -windowExit) {
+      accVelR -= changeVelPerLoop;
+    }
+    else {
+      accVelR = velR;
+    }
+    accVelR = abs(accVelR);
+    accPreviousMillis = currentMillis ;
+  }
+
+  if (currentMillis - previousMillis >= interval) {   //SETTING PID, Encoder and The Navigator.
 
     if (pidActive) {
       pidL.Compute();
@@ -154,6 +190,8 @@ void loop() {
   }
   ////    VELOCITY TIMEOUT
   if (currentMillis - timeOutPreviousMillis >= velocityTimeOut ) {  // Break Velocity after Certain Time.
+    velL = 0;
+    velR = 0;
     brakeLeftMotor(250);
     brakeRighttMotor(250);
   }
@@ -423,12 +461,12 @@ void interpretSerialData(void) {
       Serial.println('j');
       break;
     case 'K':
-    //COMMAND: K\n
-    Serial.print("k,");
-    Serial.print(measuredVelL);
-    Serial.print(",");
-    Serial.println(measuredVelR);
-      break;  
+      //COMMAND: K\n
+      Serial.print("k,");
+      Serial.print(measuredVelL);
+      Serial.print(",");
+      Serial.println(measuredVelR);
+      break;
     case 'S':
       // COMMAND:  S,1/2\n
       c1 = inputString.indexOf(',') + 1;
@@ -453,6 +491,15 @@ void interpretSerialData(void) {
         Serial.print(',');
         Serial.println(motorPIDR.kd);
       }
+      break;
+    case 'X':
+      // COMMAND:  X,Acceleration\n
+      c1 = inputString.indexOf(',') + 1;
+      val1 = inputString.substring(c1).toFloat();
+      val1 = constrain( val1, 0.2 , 2 );
+      accMillis = (changeVelPerLoop / val1)*1000;  
+      Serial.println(accMillis);    
+      Serial.println('x');
       break;
     default:
       Serial.print("UNKNOWN COMMAND: ");
